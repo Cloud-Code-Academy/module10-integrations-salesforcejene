@@ -48,9 +48,9 @@ public with sharing class DummyJSONCallout {
 
 		// If the HTTP response code is successful, parse the JSON response and update the contact.
 		if (res.getStatusCode() >= 200 && res.getStatusCode() <= 299) {
-			// Contact cont = createContactFromJson(res.getBody());
-			System.debug('Contact info: '); //+ cont);		
 			System.debug('Response body: ' + res.getBody());
+			Contact cont = createContactFromJson(res.getBody());
+			System.debug('Contact info: ' + cont);					
 		}
 	}
 
@@ -77,30 +77,28 @@ public with sharing class DummyJSONCallout {
 		}
 		// Deserialize the JSON string into map of primitive data types.
 		Map<String,Object> jsonMap = (Map<String,Object>) JSON.deserializeUntyped(jsonResponse);
+		System.debug('map contents: ' + jsonMap);
+
 		// Create a new contact from the JSON response.
 		Contact cont = new Contact();
-		System.debug('map contents: ' + jsonMap);
-		System.debug(jsonMap.get('firstname'));
-		System.debug(jsonMap.get('lastname'));
-
 		// Set the contact fields from the JSON response.
-		cont.FirstName 	= (String) jsonMap.get('firstname');
-		cont.LastName 	= (String) jsonMap.get('lastname');
-		/*cont.Email 		= (String) jsonMap.get('email');
+		cont.FirstName 	= (String) jsonMap.get('firstName');
+		cont.LastName 	= (String) jsonMap.get('lastName');
+		cont.Email 		= (String) jsonMap.get('email');
 		cont.Phone 		= (String) jsonMap.get('phone');
-		cont.Birthdate 	= Date.valueOf((String) jsonMap.get('birthdate')); */
+		cont.Birthdate 	= Date.valueOf((String) jsonMap.get('birthDate')); 
 		if (String.isBlank(cont.FirstName) || String.isBlank(cont.LastName)) {
 			throw new IllegalArgumentException('Missing required contact field(s)');
 		}
 		system.debug('output from JSON response: ' + '\n'
 		+ 'Contact First Name: ' + '' + cont.FirstName + '\n'
-		+ 'Contact Last Name: ' + '' + cont.LastName + '\n'
-		+ 'Contact Email: '     + '' + cont.Email + '\n'
-		+ 'Contact Phone: '     + '' + cont.Phone + '\n'
-		+ 'Contact Birthdate: ' + '' + cont.Email + '\n');
+		+ 'Contact Last Name: '  + '' + cont.LastName + '\n'
+		+ 'Contact Email: '      + '' + cont.Email + '\n'
+		+ 'Contact Phone: '      + '' + cont.Phone + '\n'
+		+ 'Contact Birthdate: '  + '' + cont.Email + '\n');
 
 		// Deserialize the address from the JSON response.
-		/*Map<String,Object> addressMap = (Map<String,Object>) jsonMap.get('address');
+		Map<String,Object> addressMap = (Map<String,Object>) jsonMap.get('address');
 		System.debug('contents of addressMap: ' + addressMap);
 		// Set the address fields on the contact.
 		cont.MailingStreet 		= (String) addressMap.get('address');
@@ -108,7 +106,7 @@ public with sharing class DummyJSONCallout {
 		cont.MailingPostalCode 	= (String) addressMap.get('postalCode');
 		cont.MailingState 		= (String) addressMap.get('state');
 		cont.MailingCountry 	= (String) addressMap.get('country');
-		//Database.insert (cont, AccessLevel.USER_MODE); */
+		//Database.insert (cont, AccessLevel.USER_MODE);
 		Database.insert (cont, AccessLevel.USER_MODE);
 		return cont;
 	}
@@ -131,6 +129,8 @@ public with sharing class DummyJSONCallout {
 		// Create HTTP request to send.
 		HttpRequest request = new HttpRequest();
 		// Set the endpoint URL. Use direct URL or for best practices use Named Credential.
+		System.debug('Hey Jene, this code ran!!');
+
 		request.setEndpoint('https://dummyjson.com/');
 		// Set the HTTP method to POST.
 		request.setMethod('POST');
