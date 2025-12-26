@@ -50,7 +50,7 @@ public with sharing class DummyJSONCallout {
 		if (res.getStatusCode() >= 200 && res.getStatusCode() <= 299) {
 			System.debug('Response body: ' + res.getBody());
 			Contact cont = createContactFromJson(res.getBody());
-			System.debug('Contact info: ' + cont);					
+			System.debug('Contact info (inside the getDummyJSONUserId method): ' + cont);					
 		}
 	}
 
@@ -95,7 +95,7 @@ public with sharing class DummyJSONCallout {
 		+ 'Contact Last Name: '  + '' + cont.LastName + '\n'
 		+ 'Contact Email: '      + '' + cont.Email + '\n'
 		+ 'Contact Phone: '      + '' + cont.Phone + '\n'
-		+ 'Contact Birthdate: '  + '' + cont.Email + '\n');
+		+ 'Contact Birthdate: '  + '' + cont.Birthdate + '\n');
 
 		// Deserialize the address from the JSON response.
 		Map<String,Object> addressMap = (Map<String,Object>) jsonMap.get('address');
@@ -106,7 +106,6 @@ public with sharing class DummyJSONCallout {
 		cont.MailingPostalCode 	= (String) addressMap.get('postalCode');
 		cont.MailingState 		= (String) addressMap.get('state');
 		cont.MailingCountry 	= (String) addressMap.get('country');
-		//Database.insert (cont, AccessLevel.USER_MODE);
 		Database.insert (cont, AccessLevel.USER_MODE);
 		return cont;
 	}
@@ -119,7 +118,7 @@ public with sharing class DummyJSONCallout {
 	 * Salesforce Contact should be used to generate the JSON payload
 	 * Fields: Id, FirstName, LastName, Email, Phone
 	 * This callout method should work in triggers
-	 * 
+	 *y
      * Documentation: https://dummyjson.com/docs/users
      * 
      * @param contactId The Salesforce Contact ID used to generate the JSON payload for the external system.
@@ -144,15 +143,10 @@ public with sharing class DummyJSONCallout {
 		System.debug('response status: ' + response.getStatus());
 		
 		// If the HTTP response code is successful, update the contact.
-		/*if(request.setBody('successful')==true){
-			request.setMethod('PUT');
-		}*/
 		if (response.getStatusCode() >= 200 && response.getStatusCode() <= 299) {
 			Contact cont = createContactFromJson(response.getBody());
-			System.debug('Starting the Update!' + response);
 			Database.update(cont, accessLevel.USER_MODE);
 			request.setMethod('PUT');
-			System.debug('Finished the update!!' + response);
 		}
 	}	
 
@@ -174,21 +168,26 @@ public with sharing class DummyJSONCallout {
 	@TestVisible // Allows test class to see this method. Since it is private, it would not be visible otherwise.
 	private static String generateDummyJsonUserPayload(String contactId) {
 		// Query the contact to get the field values to generate the JSON payload.
-		Contact cont = [SELECT Id, FirstName, Email, Phone 
+		Contact cont = [SELECT id, FirstName, LastName, Email, Phone 
 						FROM Contact
 						WHERE Id = :contactId
 						WITH USER_MODE
 						];
 		// Create a map of the field values.
 		Map<String, Object> jsonMap = new Map<String,Object>();
-		jsonMap.put('firstname', cont.FirstName);
+		//if the lastName from the map is blank, then provide a default value such as 'Unknown'	
+		if(String.isBlank(cont.LastName)){
+			cont.LastName = 'Unknown';
+		}
+		jsonMap.put('salesforceId', cont.Id);
+		jsonMap.put('firstName', cont.FirstName);
+		jsonMap.put('lastName', cont.LastName);
 		jsonMap.put('email', cont.Email);
 		jsonMap.put('phone', cont.Phone);
 		// Serialize the map into a JSON string.
 		String jsonPayload = JSON.serialize(jsonMap);
 		// Make sure to check that required contacts fields have a value. Default the value to unknown if it does not exists.
 		// Integration data can change over time. It is a best practice to add safeguards/validation to ensure the integration does not break.
-
 		return jsonPayload;
 	}
 }
