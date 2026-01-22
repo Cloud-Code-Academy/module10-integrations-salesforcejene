@@ -82,14 +82,14 @@ public with sharing class DummyJSONCallout {
 		// Create a new contact from the JSON response.
 		Contact cont = new Contact();
 		// Set the contact fields from the JSON response.
-		cont.FirstName 	= (String) jsonMap.get('firstName');
-		cont.LastName 	= (String) jsonMap.get('lastName');
-		cont.Email 		= (String) jsonMap.get('email');
-		cont.Phone 		= (String) jsonMap.get('phone');
-		cont.Birthdate 	= Date.valueOf((String) jsonMap.get('birthDate')); 
-		if (String.isBlank(cont.FirstName) || String.isBlank(cont.LastName)) {
-			throw new IllegalArgumentException('Missing required contact field(s)');
-		}
+		cont.FirstName 	= (String) jsonMap?.get('firstName'); //safe navigation operator
+		cont.LastName 	= (String) jsonMap?.get('lastName');
+		cont.Email 		= (String) jsonMap?.get('email');
+		cont.Phone 		= (String) jsonMap?.get('phone');
+		cont.Birthdate 	= Date.valueOf((String) jsonMap?.get('birthDate')); 
+		// if (String.isBlank(cont.FirstName) || String.isBlank(cont.LastName)) {
+		// 	throw new IllegalArgumentException('Missing required contact field(s)');
+		// }
 		system.debug('output from JSON response: ' + '\n'
 		+ 'Contact First Name: ' + '' + cont.FirstName + '\n'
 		+ 'Contact Last Name: '  + '' + cont.LastName + '\n'
@@ -101,12 +101,11 @@ public with sharing class DummyJSONCallout {
 		Map<String,Object> addressMap = (Map<String,Object>) jsonMap.get('address');
 		System.debug('contents of addressMap: ' + addressMap);
 		// Set the address fields on the contact.
-		cont.MailingStreet 		= (String) addressMap.get('address');
-		cont.MailingCity 		= (String) addressMap.get('city');
-		cont.MailingPostalCode 	= (String) addressMap.get('postalCode');
-		cont.MailingState 		= (String) addressMap.get('state');
-		cont.MailingCountry 	= (String) addressMap.get('country');
-		Database.insert (cont, AccessLevel.USER_MODE);
+		cont.MailingStreet 		= (String) addressMap?.get('address');
+		cont.MailingCity 		= (String) addressMap?.get('city');
+		cont.MailingPostalCode 	= (String) addressMap?.get('postalCode');
+		cont.MailingState 		= (String) addressMap?.get('state');
+		cont.MailingCountry 	= (String) addressMap?.get('country');
 		return cont;
 	}
 
