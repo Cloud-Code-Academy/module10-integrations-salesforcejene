@@ -16,6 +16,33 @@ public with sharing class ContactTriggerHandler {
         this.oldContactsMap = oldContactsMap;
     }
 
+    
+    public class CalloutQueueable implements Queueable, Database.AllowsCallouts {
+        private Set<String> dummyIdsFromTrigger;
+
+        public CalloutQueueable(Set<String> dummyIds){
+            this.dummyIdsFromTrigger = dummyIds;
+        }
+
+        public void execute(QueueableContext context){
+            List<Contact> contactsList = [SELECT FIELDS(STANDARD), DummyJSON_Id__c 
+                FROM Contact
+                WHERE Id IN :dummyIdsFromTrigger
+                WITH USER_MODE
+                LIMIT 100
+                ];
+
+            for(Contact con : contactsList){
+                if(con.DummyJSON_Id__c != null){
+                    //call service class logic      
+                    DummyJSONCallout.getDummyJSONUserFromId(con.DummyJSON_Id__c);
+                }
+                System.debug('Async callout triggered for: ' + con.LastName + con.DummyJSON_Id__c);
+            }
+        }
+    }
+    
+
     public void handleBeforeInsert(){
         if(hasFired){
             return;
@@ -29,19 +56,13 @@ public with sharing class ContactTriggerHandler {
         for (Contact con : newContacts){
             if (con.DummyJSON_Id__c == null){
                 //generate random number
-                con.DummyJSON_Id__c = Math.round(MatH.random()*100).toString();
-                System.debug('Value of randomNumber0To100:' );
+                con.DummyJSON_Id__c = Math.round(Math.random()*100).toString();
+                System.debug('Value of DummyJSON_Id__c:' + con.DummyJSON_Id__c );
             }
         }
         System.debug('See something');
-    }
+    }   
 
-    /** this is the shell for the next steps
-     * Can use a separate method for generating the random number
-     * Pro, very modular.
-     * If both of the below conditions happen in the same trigger context then I only need an else statement
-     */
-    
     public void handleAfterInsert(){
         if(hasFired){
             return;
@@ -49,20 +70,20 @@ public with sharing class ContactTriggerHandler {
         hasFired = true;
         runAfterInsert();
         hasFired = false;
-    }
+    }    
 
     private void runAfterInsert(){
-        System.debug('say something');
-        //When a contact is inserted
+        Set<String> dummyIdsToProcess = new Set<String>();
         
-    	// if DummyJSON_Id__c is less than or equal to 100, call the getDummyJSONUserFromId API    
-        /* Loop through newContacts (trigger.new)
-        Apply the condition
-        Collect IDs
-        Pass IDs to async integration**/
-
-        //enqueue GET callout
-        //DummyJSONCallout.getDummyJSONUserFromId();
+        for (Contact con : newContacts){
+            // if DummyJSON_Id__c is less than or equal to 100, call the getDummyJSONUserFromId API            
+            if(con.DummyJSON_Id__c != null && Integer.valueOf(con.DummyJSON_Id__c) <= 100){
+                dummyIdsToProcess.add(con.DummyJSON_Id__c);
+            }
+        } //check for data first
+        If(!dummyIdsToProcess.isEmpty()){
+            System.enqueueJob(new CalloutQueueable(dummyIdsToProcess));
+        }
     }
 
     public void handleAfterUpdate(){
@@ -75,13 +96,30 @@ public with sharing class ContactTriggerHandler {
     }
 
     private void runAfterUpdate(){
-        //When a contact is updated
-        // if DummyJSON_Id__c is greater than 100, call the postCreateDummyJSONUser API
-        //NOTE: Only fire when the value changes, not on every update.
-        //check isChanged(pick a value)
-        //All updated contacts where old value ≤ 100 and new value > 100
-        //enqueue POST callout
-        //That old vs new comparison is critical use oldContactsMap.
-        System.debug('do something');
+    Set<String> dummyIdsToProcess = new Set<String>();        
+        for(Contact newCon : newContacts){
+            //define oldMap reference to compare old vs new values
+            Contact oldCon = oldContactsMap.get(NewCon.DummyJSON_Id__c);
+
+            //Check whehter values are changed using ternary operator
+            Integer oldVal = (oldCon.DummyJSON_Id__c != null) ? Integer.valueOf(oldCon.DummyJSON_Id__c) : 0;
+            Integer newVal = (newCon.DummyJSON_Id__c != null) ? Integer.valueOf(newCon.DummyJSON_Id__c) : 0;
+
+            //Value comparison logic
+            // if(oldVal <= 100 && newVal >= 100){
+            //     dummyIdsToProcess.add(newCon.Id);
+            //     System.debug('value of newConId: ' + newCon.Id);
+            //     System.debug('value of newCon Last Name: ' + newCon.LastName);
+            // }
+            if(oldVal <= 100 && newVal >= 100){
+                dummyIdsToProcess.add(newCon.DummyJSON_Id__c);
+                System.debug('value of newDummyId: ' + newCon.DummyJSON_Id__c);
+                System.debug('value of newCon Last Name: ' + newCon.LastName);
+            }       
+        }
+        //update set of Ids after verifying
+        if(!dummyIdsToProcess.isEmpty()){
+            System.enqueueJob(new CalloutQueueable(dummyIdsToProcess));
+        }        
     }
 }

@@ -49,8 +49,19 @@ public with sharing class DummyJSONCallout {
 		// If the HTTP response code is successful, parse the JSON response and update the contact.
 		if (res.getStatusCode() >= 200 && res.getStatusCode() <= 299) {
 			System.debug('Response body: ' + res.getBody());
-			Contact cont = createContactFromJson(res.getBody());
-			System.debug('Contact info (inside the getDummyJSONUserId method): ' + cont);					
+			Contact parsedContact = createContactFromJson(res.getBody());
+			Contact existingContact = [SELECT Id
+										FROM Contact
+										WHERE DummyJSON_Id__c = :dummyUserId
+										WITH SYSTEM_MODE
+										LIMIT 1										
+									];
+			//match fields
+			parsedContact.Id = existingContact.Id;
+
+			System.debug('Parsed contact info (inside the getDummyJSONUserId method): ' + parsedContact);
+			ContactTriggerHandler.hasFired = true;
+			Database.update(parsedContact, accessLevel.SYSTEM_MODE);
 		}
 	}
 
@@ -68,29 +79,24 @@ public with sharing class DummyJSONCallout {
      * 
      * @param String jsonResponse The JSON string from the external system that contains user details.
      * @return Contact The Salesforce Contact object populated with details from the JSON string.
-     */
+     */                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 	@TestVisible // Allows test class to see this method. Since it is private, it would not be visible otherwise.
 	private static Contact createContactFromJson(String jsonResponse) {
-		//verifying data
-		if (String.isBlank(jsonResponse)){
-			throw new IllegalArgumentException('JSON input cannot be null or empty');
-		}
 		// Deserialize the JSON string into map of primitive data types.
 		Map<String,Object> jsonMap = (Map<String,Object>) JSON.deserializeUntyped(jsonResponse);
 		System.debug('map contents: ' + jsonMap);
 
-		// Create a new contact from the JSON response.
+		// Associate a contact Create a new contact from the JSON response.
+		//Contact cont = new Contact();
 		Contact cont = new Contact();
 		// Set the contact fields from the JSON response.
 		cont.FirstName 	= (String) jsonMap?.get('firstName'); //safe navigation operator
 		cont.LastName 	= (String) jsonMap?.get('lastName');
 		cont.Email 		= (String) jsonMap?.get('email');
 		cont.Phone 		= (String) jsonMap?.get('phone');
-		cont.Birthdate 	= Date.valueOf((String) jsonMap?.get('birthDate')); 
-		// if (String.isBlank(cont.FirstName) || String.isBlank(cont.LastName)) {
-		// 	throw new IllegalArgumentException('Missing required contact field(s)');
-		// }
-		system.debug('output from JSON response: ' + '\n'
+		cont.Birthdate 	= Date.valueOf((String) jsonMap?.get('birthDate'));
+
+		system.debug('--Output from JSON response: ' + '\n'
 		+ 'Contact First Name: ' + '' + cont.FirstName + '\n'
 		+ 'Contact Last Name: '  + '' + cont.LastName + '\n'
 		+ 'Contact Email: '      + '' + cont.Email + '\n'
@@ -143,9 +149,10 @@ public with sharing class DummyJSONCallout {
 		
 		// If the HTTP response code is successful, update the contact.
 		if (response.getStatusCode() >= 200 && response.getStatusCode() <= 299) {
-			Contact cont = createContactFromJson(response.getBody());
+			//Contact cont = createContactFromJson(response.getBody());
+			Contact cont = new Contact(Id = contactId);
+			cont.DummyJSON_last_Updated__c = System.now();
 			Database.update(cont, accessLevel.USER_MODE);
-			request.setMethod('PUT');
 		}
 	}	
 
@@ -175,9 +182,7 @@ public with sharing class DummyJSONCallout {
 		// Create a map of the field values.
 		Map<String, Object> jsonMap = new Map<String,Object>();
 		//if the lastName from the map is blank, then provide a default value such as 'Unknown'	
-		if(String.isBlank(cont.LastName)){
-			cont.LastName = 'Unknown';
-		}
+		cont.LastName = String.isNotBlank(cont.LastName) ? cont.LastName : 'Unknown';
 		jsonMap.put('salesforceId', cont.Id);
 		jsonMap.put('firstName', cont.FirstName);
 		jsonMap.put('lastName', cont.LastName);
