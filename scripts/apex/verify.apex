@@ -1,7 +1,13 @@
+Contact testCon = new Contact(
+    FirstName='Integration',
+    LastName='Test_' + DateTime.now().getTime(),
+    DummyJSON_Id__c ='111'    
+    );
+
 DummyJSONCallout.getDummyJSONUserFromId('47');
 
 //insert contact
-Contact newContact = new Contact (FirstName = 'Sam', LastName='Adams');
+Contact newContact = new Contact (FirstName = 'Samuelle', LastName='Adams');
 insert newContact;
 System.debug('new Contact result: ' + newContact);
 

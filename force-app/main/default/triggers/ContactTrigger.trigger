@@ -16,7 +16,7 @@
  * 
  * Optional Challenge: Use a trigger handler class to implement the trigger logic.
  */
-trigger ContactTrigger on Contact(before insert, before update, after insert, after update) {
+trigger ContactTrigger on Contact(before insert, after insert, after update){
 	//instantiate Contact Trigger Handler class
 	ContactTriggerHandler cth = new ContactTriggerHandler (Trigger.new, Trigger.old, Trigger.newMap, Trigger.oldMap);
 

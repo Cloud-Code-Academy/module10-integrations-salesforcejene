@@ -48,20 +48,21 @@ public with sharing class DummyJSONCallout {
 
 		// If the HTTP response code is successful, parse the JSON response and update the contact.
 		if (res.getStatusCode() >= 200 && res.getStatusCode() <= 299) {
-			System.debug('Response body: ' + res.getBody());
+			//These are single record containers and not bulkified. In the wild, these would be lists or sets
 			Contact parsedContact = createContactFromJson(res.getBody());
-			Contact existingContact = [SELECT Id
-										FROM Contact
-										WHERE DummyJSON_Id__c = :dummyUserId
-										WITH SYSTEM_MODE
-										LIMIT 1										
-									];
-			//match fields
-			parsedContact.Id = existingContact.Id;
+			Contact existingContact = [SELECT Id, DummyJSON_Id__c
+						FROM Contact
+						WHERE DummyJSON_Id__c = :dummyUserId
+						WITH USER_MODE
+						LIMIT 1										
+					];
 
-			System.debug('Parsed contact info (inside the getDummyJSONUserId method): ' + parsedContact);
-			ContactTriggerHandler.hasFired = true;
-			Database.update(parsedContact, accessLevel.SYSTEM_MODE);
+			if(existingContact != null && parsedContact != null) {
+				parsedContact.Id = existingContact.Id;
+				System.debug('Parsed contact info (inside the getDummyJSONUserId method): ' + parsedContact);
+				ContactTriggerHandler.setTriggerHasFired(true);
+				Database.update(parsedContact, accessLevel.USER_MODE);
+			}		
 		}
 	}
 
@@ -84,10 +85,8 @@ public with sharing class DummyJSONCallout {
 	private static Contact createContactFromJson(String jsonResponse) {
 		// Deserialize the JSON string into map of primitive data types.
 		Map<String,Object> jsonMap = (Map<String,Object>) JSON.deserializeUntyped(jsonResponse);
-		System.debug('map contents: ' + jsonMap);
 
 		// Associate a contact Create a new contact from the JSON response.
-		//Contact cont = new Contact();
 		Contact cont = new Contact();
 		// Set the contact fields from the JSON response.
 		cont.FirstName 	= (String) jsonMap?.get('firstName'); //safe navigation operator

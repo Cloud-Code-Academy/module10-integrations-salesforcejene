@@ -16,32 +16,33 @@ public with sharing class ContactTriggerHandler {
         this.oldContactsMap = oldContactsMap;
     }
 
-    
-    public class CalloutQueueable implements Queueable, Database.AllowsCallouts {
-        private Set<String> dummyIdsFromTrigger;
+    public static void setTriggerHasFired(Boolean result){
+        hasFired = result;
+    }
 
-        public CalloutQueueable(Set<String> dummyIds){
-            this.dummyIdsFromTrigger = dummyIds;
+    public class ContactCalloutQueueable implements Queueable, Database.AllowsCallouts {
+        private Set<Id> contactIds;
+
+        public ContactCalloutQueueable(Set<Id> contactIds){
+            this.contactIds = contactIds;
         }
 
         public void execute(QueueableContext context){
-            List<Contact> contactsList = [SELECT FIELDS(STANDARD), DummyJSON_Id__c 
-                FROM Contact
-                WHERE Id IN :dummyIdsFromTrigger
-                WITH USER_MODE
-                LIMIT 100
-                ];
+            List<Contact> contactsList = [SELECT Id, FirstName, LastName, Email, Phone, DummyJSON_Id__c 
+                            FROM Contact
+                            WHERE Id IN :contactIds                            
+                            WITH USER_MODE
+                            LIMIT 100
+                            ]; //lIMIT set as a safe guard to the 100 callout limt.
 
             for(Contact con : contactsList){
                 if(con.DummyJSON_Id__c != null){
-                    //call service class logic      
                     DummyJSONCallout.getDummyJSONUserFromId(con.DummyJSON_Id__c);
                 }
-                System.debug('Async callout triggered for: ' + con.LastName + con.DummyJSON_Id__c);
             }
         }
     }
-    
+
 
     public void handleBeforeInsert(){
         if(hasFired){
@@ -57,11 +58,9 @@ public with sharing class ContactTriggerHandler {
             if (con.DummyJSON_Id__c == null){
                 //generate random number
                 con.DummyJSON_Id__c = Math.round(Math.random()*100).toString();
-                System.debug('Value of DummyJSON_Id__c:' + con.DummyJSON_Id__c );
             }
         }
-        System.debug('See something');
-    }   
+    }
 
     public void handleAfterInsert(){
         if(hasFired){
@@ -73,16 +72,15 @@ public with sharing class ContactTriggerHandler {
     }    
 
     private void runAfterInsert(){
-        Set<String> dummyIdsToProcess = new Set<String>();
+        Set<Id> idsToProcess = new Set<Id>();
         
-        for (Contact con : newContacts){
-            // if DummyJSON_Id__c is less than or equal to 100, call the getDummyJSONUserFromId API            
+        for (Contact con : newContacts){         
             if(con.DummyJSON_Id__c != null && Integer.valueOf(con.DummyJSON_Id__c) <= 100){
-                dummyIdsToProcess.add(con.DummyJSON_Id__c);
+                idsToProcess.add(con.Id);
             }
-        } //check for data first
-        If(!dummyIdsToProcess.isEmpty()){
-            System.enqueueJob(new CalloutQueueable(dummyIdsToProcess));
+        }
+        If(!idsToProcess.isEmpty()){
+            System.enqueueJob(new ContactCalloutQueueable(idsToProcess));
         }
     }
 
@@ -96,30 +94,19 @@ public with sharing class ContactTriggerHandler {
     }
 
     private void runAfterUpdate(){
-    Set<String> dummyIdsToProcess = new Set<String>();        
+    Set<Id> idsToProcess = new Set<Id>();        
         for(Contact newCon : newContacts){
-            //define oldMap reference to compare old vs new values
-            Contact oldCon = oldContactsMap.get(NewCon.DummyJSON_Id__c);
+            Contact oldCon = oldContactsMap.get(NewCon.Id);
 
-            //Check whehter values are changed using ternary operator
             Integer oldVal = (oldCon.DummyJSON_Id__c != null) ? Integer.valueOf(oldCon.DummyJSON_Id__c) : 0;
             Integer newVal = (newCon.DummyJSON_Id__c != null) ? Integer.valueOf(newCon.DummyJSON_Id__c) : 0;
 
-            //Value comparison logic
-            // if(oldVal <= 100 && newVal >= 100){
-            //     dummyIdsToProcess.add(newCon.Id);
-            //     System.debug('value of newConId: ' + newCon.Id);
-            //     System.debug('value of newCon Last Name: ' + newCon.LastName);
-            // }
             if(oldVal <= 100 && newVal >= 100){
-                dummyIdsToProcess.add(newCon.DummyJSON_Id__c);
-                System.debug('value of newDummyId: ' + newCon.DummyJSON_Id__c);
-                System.debug('value of newCon Last Name: ' + newCon.LastName);
-            }       
+                idsToProcess.add(newCon.Id);
+            }                
         }
-        //update set of Ids after verifying
-        if(!dummyIdsToProcess.isEmpty()){
-            System.enqueueJob(new CalloutQueueable(dummyIdsToProcess));
+        if(!idsToProcess.isEmpty()){
+            System.enqueueJob(new ContactCalloutQueueable(idsToProcess));
         }        
     }
 }
