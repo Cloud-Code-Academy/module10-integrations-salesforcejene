@@ -7,6 +7,8 @@ public with sharing class ContactTriggerHandler {
     private Map<Id,Contact> oldContactsMap  = new Map<Id,Contact>();
     //static flag to prevent recursion
     static Boolean hasFired = false;
+    //public flag so tests can bypass asyc Callout
+    public static Boolean bypassTrigger = false;
 
 
     public ContactTriggerHandler(List<Contact> newContacts, List<Contact> oldContacts, Map<Id,Contact> newContactsMap, Map<Id,Contact> oldContactsMap) {
@@ -63,6 +65,11 @@ public with sharing class ContactTriggerHandler {
     }
 
     public void handleAfterInsert(){
+        //check whether bypass is enabled
+        if (bypassTrigger){
+            return;
+        }
+
         if(hasFired){
             return;
         }
@@ -85,6 +92,11 @@ public with sharing class ContactTriggerHandler {
     }
 
     public void handleAfterUpdate(){
+        //check bypass flag
+        if (bypassTrigger){
+            return;
+        }
+
         if(hasFired){
             return;
         }
