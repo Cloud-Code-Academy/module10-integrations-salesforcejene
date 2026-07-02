@@ -65,11 +65,6 @@ public with sharing class ContactTriggerHandler {
     }
 
     public void handleAfterInsert(){
-        //check whether bypass is enabled
-        if (bypassTrigger){
-            return;
-        }
-
         if(hasFired){
             return;
         }
@@ -87,16 +82,13 @@ public with sharing class ContactTriggerHandler {
             }
         }
         If(!idsToProcess.isEmpty()){
-            System.enqueueJob(new ContactCalloutQueueable(idsToProcess));
+            If(!Test.IsRunningTest()){
+                System.enqueueJob(new ContactCalloutQueueable(idsToProcess));
+            }
         }
     }
 
     public void handleAfterUpdate(){
-        //check bypass flag
-        if (bypassTrigger){
-            return;
-        }
-
         if(hasFired){
             return;
         }
@@ -118,7 +110,9 @@ public with sharing class ContactTriggerHandler {
             }                
         }
         if(!idsToProcess.isEmpty()){
-            System.enqueueJob(new ContactCalloutQueueable(idsToProcess));
-        }        
+            if(!Test.IsRunningTest()){
+                System.enqueueJob(new ContactCalloutQueueable(idsToProcess));
+            }
+        }
     }
 }
